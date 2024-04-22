@@ -19,6 +19,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.web.servlet.filter.OrderedFormContentFilter;
+import org.springframework.test.annotation.Commit;
 
 import java.util.List;
 
@@ -27,6 +28,7 @@ import static hello.querydsl.entity.QMember.member;
 @SpringBootTest
 @Transactional
 @Slf4j
+@Commit
 public class QueryDSLAdvancedTest {
     @Autowired
     EntityManager em;
@@ -46,9 +48,9 @@ public class QueryDSLAdvancedTest {
         em.persist(teamB);
 
         Member member1 = new Member("member1", 10, teamA);
-        Member member2 = new Member("member2", 10, teamA);
-        Member member3 = new Member("member3", 10, teamB);
-        Member member4 = new Member("member4", 10, teamB);
+        Member member2 = new Member("member2", 20, teamA);
+        Member member3 = new Member("member3", 30, teamB);
+        Member member4 = new Member("member4", 40, teamB);
 
         em.persist(member1);
         em.persist(member2);
@@ -197,7 +199,7 @@ public class QueryDSLAdvancedTest {
                                                 .select(memberSub.age.avg().intValue())
                                                 .from(memberSub)
 
-                                , "age")
+                                        , "age")
                         )
                 )
                 .from(member)
@@ -209,7 +211,8 @@ public class QueryDSLAdvancedTest {
         }
     }
 
-    @Test //todo : MemberDTO 에 @QueryProjection 을 명시해 주면 된다.DTO 도 Q파일로 생성이 된다
+    @Test
+        //todo : MemberDTO 에 @QueryProjection 을 명시해 주면 된다.DTO 도 Q파일로 생성이 된다
     void find_by_query_projection() {
         List<MemberDTO> memberDTOs = queryFactory
                 .select(new QMemberDTO(member.username, member.age))
@@ -223,7 +226,7 @@ public class QueryDSLAdvancedTest {
 
     //todo : 동적 쿼리 BooleanBuilder
     @Test
-    void dynamic_query_boolean_builder(){
+    void dynamic_query_boolean_builder() {
         String usernameParam = "member1";
         Integer ageParam = null;
 
@@ -235,11 +238,11 @@ public class QueryDSLAdvancedTest {
     private List<Member> searchMember(String usernameCond, Integer ageCond) {
         BooleanBuilder builder = new BooleanBuilder();
 
-        if(usernameCond != null) {
+        if (usernameCond != null) {
             builder.and(member.username.eq(usernameCond));
         }
 
-        if(ageCond != null){
+        if (ageCond != null) {
             builder.and(member.age.eq(ageCond));
         }
 
@@ -253,7 +256,7 @@ public class QueryDSLAdvancedTest {
 
     //todo : 동적 쿼리 Where 절에서 사용
     @Test
-    void dynamic_query_where_param(){
+    void dynamic_query_where_param() {
         String usernameParam = "member1";
         Integer ageParam = null;
 
@@ -272,7 +275,7 @@ public class QueryDSLAdvancedTest {
     }
 
     private BooleanExpression usernameEq(String usernameCond) {
-        if(usernameCond == null) {
+        if (usernameCond == null) {
             return null;
         }
 
@@ -280,7 +283,7 @@ public class QueryDSLAdvancedTest {
     }
 
     private BooleanExpression ageEq(Integer ageCond) {
-        if(ageCond == null) {
+        if (ageCond == null) {
             return null;
         }
         return member.age.eq(ageCond);
@@ -288,5 +291,32 @@ public class QueryDSLAdvancedTest {
 
     private BooleanExpression allEq(String usernameCond, Integer ageCond) {
         return usernameEq(usernameCond).and(ageEq(ageCond));
+    }
+
+
+    //todo : Bulk 연산, Bulk 연산 후에 flush, clear 를 해줘야 한다
+    @Test
+    void bulk_update() {
+
+        long appliedCount = queryFactory
+                .update(member)
+                .set(member.username, "비회원")
+                .where(member.age.lt(28))
+                .execute();
+
+        em.flush();
+        em.clear();
+
+        List<Member> members = queryFactory
+                .selectFrom(member)
+                .fetch();
+
+
+
+        for (Member member : members) {
+            log.info("member = {}", member);
+        }
+
+
     }
 }
